@@ -90,10 +90,10 @@
 </div>
 <div class="resources-bar">
   <span class="resources-label">Fichas disponibles</span>
-  <div class="chips-pool" id="pool"></div>
+  <div class="chips-pool" id="pool" onclick="tapPool()" style="cursor:pointer;min-height:44px;"></div>
   <span id="chips-count">8 fichas</span>
 </div>
-<p class="instruction-tip">Arrastra las fichas verdes hacia las areas donde enfocarias recursos. Puedes devolver fichas arrastrando de vuelta al pool.</p>
+<p class="instruction-tip" id="tip">Toca una ficha del pool para seleccionarla, luego toca un area</p>
 <p class="grid-title">Areas de intervencion</p>
 <div class="hazards-grid" id="hazards-grid"></div>
 <div class="actions">
@@ -132,7 +132,7 @@ const hazards = [
 let assigned = {};
 hazards.forEach(h => assigned[h.id] = 0);
 let poolCount = TOTAL_CHIPS;
-let dragFrom = null;
+let selected = null; // 'pool' | hazard id | null
 let linajerevealed = false;
 
 function revealLinaje() {
@@ -144,23 +144,92 @@ function revealLinaje() {
   document.getElementById('linaje-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-function buildPool() {
+function setSelected(src) {
+  selected = src;
+  // Visual feedback on pool
   const pool = document.getElementById('pool');
-  pool.innerHTML = '';
-  for (let i = 0; i < poolCount; i++) {
-    pool.appendChild(makeChip('pool', i));
+  pool.style.boxShadow = src === 'pool' ? '0 0 0 2px #00b894' : '';
+  // Visual feedback on cards
+  document.querySelectorAll('.hazard-card').forEach(card => {
+    const id = card.dataset.id;
+    if (src && src !== 'pool' && src === id) {
+      card.style.boxShadow = '0 0 0 2px #00b894';
+    } else {
+      card.style.boxShadow = '';
+    }
+  });
+  // Update instruction tip
+  const tip = document.getElementById('tip');
+  if (!tip) return;
+  if (src === 'pool') {
+    tip.textContent = 'Ficha seleccionada — toca una area para colocarla';
+    tip.style.color = '#00b894';
+  } else if (src) {
+    tip.textContent = 'Ficha seleccionada — toca otra area o el pool para moverla';
+    tip.style.color = '#fdcb6e';
+  } else {
+    tip.textContent = 'Toca una ficha del pool para seleccionarla, luego toca un area';
+    tip.style.color = 'var(--muted)';
   }
-  document.getElementById('chips-count').textContent = poolCount + ' ficha' + (poolCount !== 1 ? 's' : '');
 }
 
-function makeChip(from, idx) {
-  const c = document.createElement('div');
-  c.className = 'chip';
-  c.draggable = true;
-  c.dataset.from = from;
-  c.addEventListener('dragstart', e => { dragFrom = from; setTimeout(() => c.classList.add('dragging'), 0); });
-  c.addEventListener('dragend', () => c.classList.remove('dragging'));
-  return c;
+function tapPool() {
+  if (selected === null || selected === 'pool') {
+    // Select from pool
+    if (poolCount > 0) setSelected('pool');
+  } else {
+    // Return chip from hazard to pool
+    if (assigned[selected] > 0) {
+      assigned[selected]--;
+      poolCount++;
+      renderCard(selected);
+      buildPool();
+      document.getElementById('results-panel').classList.remove('visible');
+    }
+    setSelected(null);
+  }
+}
+
+function tapCard(targetId) {
+  if (selected === null) {
+    // Select from this card if it has chips
+    if (assigned[targetId] > 0) setSelected(targetId);
+    return;
+  }
+  if (selected === targetId) {
+    // Deselect
+    setSelected(null);
+    return;
+  }
+  if (selected === 'pool') {
+    if (poolCount <= 0) { setSelected(null); return; }
+    poolCount--;
+    assigned[targetId]++;
+  } else {
+    // Move from one card to another
+    if (assigned[selected] <= 0) { setSelected(null); return; }
+    assigned[selected]--;
+    assigned[targetId]++;
+    renderCard(selected);
+  }
+  renderCard(targetId);
+  buildPool();
+  document.getElementById('results-panel').classList.remove('visible');
+  setSelected(null);
+}
+
+function buildPool() {
+  const pool = document.getElementById('pool');
+  // Preserve box shadow state
+  const hadShadow = pool.style.boxShadow;
+  pool.innerHTML = '';
+  for (let i = 0; i < poolCount; i++) {
+    const c = document.createElement('div');
+    c.className = 'chip';
+    pool.appendChild(c);
+  }
+  document.getElementById('chips-count').textContent = poolCount + ' ficha' + (poolCount !== 1 ? 's' : '');
+  pool.style.boxShadow = hadShadow;
 }
 
 function buildHazards() {
@@ -169,12 +238,9 @@ function buildHazards() {
   hazards.forEach(h => {
     const card = document.createElement('div');
     card.className = 'hazard-card';
+    card.dataset.id = h.id;
     card.style.setProperty('--zone-color', h.zoneColor);
-
-    const rb = document.createElement('button');
-    rb.className = 'remove-btn';
-    rb.textContent = 'x';
-    rb.onclick = () => returnChips(h.id);
+    card.addEventListener('click', () => tapCard(h.id));
 
     const zone = document.createElement('div');
     zone.className = 'hazard-zone';
@@ -193,9 +259,11 @@ function buildHazards() {
     cnt.className = 'hazard-chip-count';
     cnt.id = 'cnt-' + h.id;
 
-    czone.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
-    czone.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-    czone.addEventListener('drop', e => { e.preventDefault(); card.classList.remove('drag-over'); drop(h.id); });
+    // Return button
+    const rb = document.createElement('button');
+    rb.className = 'remove-btn';
+    rb.textContent = 'x';
+    rb.onclick = (e) => { e.stopPropagation(); returnChips(h.id); };
 
     card.append(rb, zone, name, czone, cnt);
     grid.appendChild(card);
@@ -207,24 +275,13 @@ function renderCard(id) {
   const czone = document.querySelector('[data-target="'+id+'"]');
   if (!czone) return;
   czone.innerHTML = '';
-  for (let i = 0; i < assigned[id]; i++) czone.appendChild(makeChip(id, i));
+  for (let i = 0; i < assigned[id]; i++) {
+    const c = document.createElement('div');
+    c.className = 'chip';
+    czone.appendChild(c);
+  }
   const cnt = document.getElementById('cnt-' + id);
   if (cnt) cnt.textContent = assigned[id] + ' ficha' + (assigned[id] !== 1 ? 's' : '');
-}
-
-function drop(targetId) {
-  if (dragFrom === 'pool') {
-    if (poolCount <= 0) { dragFrom = null; return; }
-    poolCount--; assigned[targetId]++;
-  } else if (dragFrom && dragFrom !== targetId) {
-    if (assigned[dragFrom] <= 0) { dragFrom = null; return; }
-    assigned[dragFrom]--; assigned[targetId]++;
-    renderCard(dragFrom);
-  }
-  renderCard(targetId);
-  buildPool();
-  document.getElementById('results-panel').classList.remove('visible');
-  dragFrom = null;
 }
 
 function returnChips(id) {
@@ -232,12 +289,14 @@ function returnChips(id) {
   assigned[id] = 0;
   renderCard(id);
   buildPool();
+  if (selected === id) setSelected(null);
   document.getElementById('results-panel').classList.remove('visible');
 }
 
 function resetAll() {
   hazards.forEach(h => assigned[h.id] = 0);
   poolCount = TOTAL_CHIPS;
+  setSelected(null);
   buildPool();
   buildHazards();
   document.getElementById('results-panel').classList.remove('visible');
@@ -278,20 +337,6 @@ function showResults() {
   content.innerHTML = html;
   panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-
-// Pool accepts drops to return chips
-document.getElementById('pool').addEventListener('dragover', e => e.preventDefault());
-document.getElementById('pool').addEventListener('drop', e => {
-  e.preventDefault();
-  if (dragFrom && dragFrom !== 'pool' && assigned[dragFrom] > 0) {
-    assigned[dragFrom]--;
-    poolCount++;
-    renderCard(dragFrom);
-    buildPool();
-    document.getElementById('results-panel').classList.remove('visible');
-  }
-  dragFrom = null;
-});
 
 buildPool();
 buildHazards();
