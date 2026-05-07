@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Listeria 2 — Juego de Recursos | South Wind</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=DM+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #1c2330;
+    --border: #30363d; --accent: #00b894; --accent2: #fdcb6e;
+    --danger: #e17055; --text: #e6edf3; --muted: #8b949e;
+  }
+  body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; user-select: none; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .badge { display: inline-block; background: var(--danger); color: white; font-family: 'DM Mono', monospace; font-size: 11px; padding: 3px 10px; border-radius: 20px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.6} }
+  h1 { font-size: clamp(20px,4vw,30px); font-weight: 800; line-height: 1.1; }
+  h1 span { color: var(--accent); }
+  .scenario-box { background: var(--surface); border: 1px solid var(--danger); border-left: 4px solid var(--danger); border-radius: 8px; padding: 16px 20px; margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+  .scenario-box strong { color: var(--danger); font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; display: block; margin-bottom: 6px; }
+  .resources-bar { display: flex; align-items: center; gap: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; flex-wrap: wrap; }
+  .resources-label { font-family: 'DM Mono', monospace; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; flex-shrink: 0; }
+  .chips-pool { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; min-height: 36px; align-items: center; }
+  .chip { width: 32px; height: 32px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #00d4a0, #00856e); border: 3px solid #00ffc3; cursor: grab; transition: transform .15s, box-shadow .15s; box-shadow: 0 2px 8px rgba(0,184,148,.4); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+  .chip::after { content:''; position:absolute; width:22px; height:22px; border-radius:50%; border:1px dashed rgba(255,255,255,.4); }
+  .chip:hover { transform: scale(1.15); box-shadow: 0 4px 16px rgba(0,184,148,.6); }
+  .chip:active { cursor: grabbing; }
+  .chip.dragging { opacity: .4; }
+  #chips-count { font-family: 'DM Mono', monospace; font-size: 13px; color: var(--accent); font-weight: 500; flex-shrink: 0; min-width: 80px; }
+  .grid-title { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  .hazards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 10px; margin-bottom: 20px; }
+  .hazard-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; transition: border-color .2s, background .2s; position: relative; overflow: hidden; }
+  .hazard-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: var(--zone-color, var(--border)); border-radius: 10px 10px 0 0; }
+  .hazard-card.drag-over { border-color: var(--accent); background: rgba(0,184,148,.08); box-shadow: 0 0 0 2px rgba(0,184,148,.3); }
+  .hazard-zone { font-family: 'DM Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .hazard-name { font-size: 13px; font-weight: 600; line-height: 1.3; margin-bottom: 10px; }
+  .hazard-chips-zone { min-height: 40px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; padding: 6px; border-radius: 6px; border: 1px dashed var(--border); transition: border-color .2s; }
+  .hazard-card.drag-over .hazard-chips-zone { border-color: var(--accent); }
+  .hazard-chip-count { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); display: block; margin-top: 6px; }
+  .remove-btn { position:absolute; top:8px; right:8px; width:20px; height:20px; border-radius:50%; background:transparent; border:1px solid var(--border); color:var(--muted); font-size:12px; cursor:pointer; display:none; align-items:center; justify-content:center; transition:background .15s, color .15s; line-height:1; }
+  .remove-btn:hover { background: var(--danger); color: white; border-color: var(--danger); }
+  .hazard-card:hover .remove-btn { display: flex; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .btn { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; transition: all .15s; }
+  .btn-primary { background: var(--accent); color: #0d1117; }
+  .btn-primary:hover { background: #00d4a0; transform: translateY(-1px); }
+  .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  .results-panel { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .results-panel.visible { display: block; }
+  .results-title { font-size: 16px; font-weight: 800; margin-bottom: 16px; color: var(--accent2); }
+  .result-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .result-item:last-child { border-bottom: none; }
+  .result-chips-badge { background: var(--accent); color: #0d1117; font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 20px; flex-shrink: 0; min-width: 28px; text-align: center; }
+  .result-chips-badge.zero { background: var(--border); color: var(--muted); }
+  .result-content { flex: 1; }
+  .result-name { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+  .result-feedback { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .result-feedback em { color: var(--accent2); font-style: normal; }
+  .progress-bar-wrap { background: var(--border); border-radius: 4px; height: 4px; margin-top: 6px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width .4s ease; }
+  .discussion-box { background: var(--surface2); border: 1px solid var(--accent2); border-left: 4px solid var(--accent2); border-radius: 8px; padding: 16px; margin-top: 16px; }
+  .discussion-box strong { color: var(--accent2); font-size: 12px; font-family: 'DM Mono', monospace; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 8px; }
+  .discussion-box ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .discussion-box li { font-size: 13px; line-height: 1.5; padding-left: 16px; position: relative; }
+  .discussion-box li::before { content: '›'; position: absolute; left: 0; color: var(--accent2); }
+  .instruction-tip { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); text-align: center; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="badge">Alerta Listeria</div>
+  <h1>Juego de Recursos<br><span>South Wind — Sala de Procesos</span></h1>
+</div>
+<div class="scenario-box">
+  <strong>Caso real — South Wind, Sala 10</strong>
+  En los ultimos meses se han detectado positivos de <em>Listeria monocytogenes</em> en materia prima de uno de los proveedores. Ademas, hemos tenido positivos reiterados en superficies de Sala 10: piso y canaletas, sector cercano a las camaras de almacenamiento de producto intermedio. No hay positivos en zona 1 ni en producto terminado al momento del reporte. Tienes <strong>8 fichas de recursos</strong> (tiempo, personal, insumos) disponibles esta semana. Como las distribuyes?
+</div>
+<div class="scenario-box" id="linaje-box" style="display:none; border-color: var(--accent2); border-left-color: var(--accent2);">
+  <strong>Dato nuevo del laboratorio</strong>
+  Se hizo la "huella genetica" de ambas cepas — la del proveedor y la de Sala 10. <strong>Son distintas.</strong> No tienen relacion entre si: entraron a la planta por caminos separados, son dos eventos independientes.
+  <br><br>
+  La cepa de Sala 10 es <strong>ST6, Linaje I</strong>. Es el linaje que aparece en la mayoria de los casos clinicos serios en humanos. Ademas, tiene genes que le dan tolerancia a la sal y capacidad de formar biofilm — dos ventajas en una sala de proceso de salmon.
+  <br><br>
+  La buena noticia: <strong>la detectamos antes de que llegara al producto.</strong> Y el desinfectante que usamos sigue siendo efectivo contra ella — pero solo si se aplica bien y en los lugares correctos.
+  <br><br>
+  Con este dato: <strong>cambiarias tu distribucion de fichas?</strong>
+</div>
+<div class="resources-bar">
+  <span class="resources-label">Fichas disponibles</span>
+  <div class="chips-pool" id="pool"></div>
+  <span id="chips-count">8 fichas</span>
+</div>
+<p class="instruction-tip">Arrastra las fichas verdes hacia las areas donde enfocarias recursos. Puedes devolver fichas arrastrando de vuelta al pool.</p>
+<p class="grid-title">Areas de intervencion</p>
+<div class="hazards-grid" id="hazards-grid"></div>
+<div class="actions">
+  <button class="btn btn-primary" onclick="showResults()">Ver analisis del facilitador</button>
+  <button class="btn btn-secondary" id="btn-linaje" onclick="revealLinaje()" disabled style="opacity:0.4;cursor:not-allowed;">Revelar dato del laboratorio (<span id="linaje-timer">5:00</span>)</button>
+  <button class="btn btn-secondary" onclick="resetAll()">Reiniciar</button>
+</div>
+<div class="results-panel" id="results-panel">
+  <div class="results-title">Analisis del facilitador</div>
+  <div id="results-content"></div>
+  <div class="discussion-box">
+    <strong>Preguntas para discusion en grupo</strong>
+    <ul>
+      <li>El positivo fue en piso (zona 3-4). Cuantos asignaron recursos igual? Por que si o no?</li>
+      <li>Cuando revelamos que es Linaje I, cambiaron algo? Que implica eso para ustedes?</li>
+      <li>Que diferencia hay entre un positivo en piso versus uno en una superficie en contacto con producto?</li>
+      <li>Si este positivo se repitiera en el proximo muestreo, que significaria eso sobre el foco?</li>
+      <li>Quedaron fichas sin asignar? Fue una decision consciente o no supieron donde ponerlas?</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+const TOTAL_CHIPS = 8;
+const hazards = [
+  { id:'drain', name:'Desague del sector con acumulacion de biofilm o material organico', zone:'Zona 3 — Piso', zoneColor:'#e17055', feedback:'Alta prioridad. El positivo fue en piso y el desague es el nicho primario de <em>Lm</em> en sala de proceso. Biofilm en desague puede llevar anos sin detectarse. Requiere desmontaje, limpieza profunda con accion mecanica, y swabbing post-intervencion para verificar resultado.', priority:'alta' },
+  { id:'equip', name:'Revision de equipos con partes huecas o juntas danadas en el sector', zone:'Zona 1-2 — Equipos', zoneColor:'#e17055', feedback:'Alta prioridad aunque el positivo fue en piso. Los equipos cercanos pueden ser el origen real — el piso recibe lo que cae o salpica desde zonas superiores. Rodillos huecos, juntas gastadas y grietas en estructura son nichos clasicos. Evaluar si hay equipo danado en Sala 10 que nadie ha reportado.', priority:'alta' },
+  { id:'reswab', name:'Re-muestreo ambiental extendido en Sala 10 (zona 1, 2 y 3)', zone:'Laboratorio / Calidad', zoneColor:'#00b894', feedback:'Esencial e inmediato. Un positivo en piso no delimita el foco: puede haber positivos no detectados en zona 1 o zona 2 cercanas. Sin re-swab extendido no puedes saber si estas ante un evento puntual o un nido establecido. Minimo 10-15 puntos, incluyendo superficies en contacto con producto.', priority:'alta' },
+  { id:'traffic', name:'Analisis de trafico y rutas de operarios y equipos rodantes en Sala 10', zone:'Zona 3-4 — Flujos', zoneColor:'#74b9ff', feedback:'Prioridad media. El piso es una superficie de transito: algo o alguien pudo haber transportado la bacteria desde otra zona. Revisar si hay cruce de zonas sucias/limpias, si operarios transitan entre Sala 10 y otras salas sin barrera, y si el montacargas o carros entran al sector.', priority:'media' },
+  { id:'ceiling', name:'Condensacion, goteras o humedad en estructura de Sala 10', zone:'Zona 2-3 — Estructura', zoneColor:'#fdcb6e', feedback:'Prioridad media. La condensacion activa sobre piso genera charcos y dispersa contaminacion. Si hay goteras desde camara fria o union de techo, puede ser ruta de introduccion continua. Frecuentemente ignorada porque no es visible durante produccion.', priority:'media' },
+  { id:'product', name:'Evaluacion de lotes producidos en Sala 10 y posible retencion preventiva', zone:'Producto Terminado', zoneColor:'#fd79a8', feedback:'Requiere evaluacion tecnica. El positivo fue en zona 3 (piso), lo que en principio no implica contacto directo con producto. Sin embargo, si hay evidencia de salpicadura hacia zona 1 o el re-swab da positivos en zona 1, la retencion preventiva de lotes recientes es justificada bajo HARPC. No actuar aqui ciegamente, pero tampoco ignorarlo.', priority:'revisar' },
+  { id:'rawmat', name:'Revision de materia prima o insumos ingresados recientemente', zone:'Recepcion', zoneColor:'#a29bfe', feedback:'Baja prioridad en este escenario. El positivo fue ambiental en piso de sala, no en producto ni en recepcion. Investigar MP desviar recursos del foco confirmado. Puede considerarse si el re-muestreo revela patron de introduccion recurrente desde recepcion.', priority:'baja' },
+  { id:'training', name:'Refuerzo inmediato de higiene y conductas en Sala 10', zone:'Operaciones / RRHH', zoneColor:'#55efc4', feedback:'Util pero no urgente como primera accion. No resuelve el foco fisico existente. Mas eficaz como accion paralela o post-resolucion: reforzar manejo de desague, no barrer en seco, no cruzar zonas con el mismo equipo. El mensaje clave es que el operario es el primer sensor del ambiente.', priority:'baja' }
+];
+
+let assigned = {};
+hazards.forEach(h => assigned[h.id] = 0);
+let poolCount = TOTAL_CHIPS;
+let dragFrom = null;
+let linajerevealed = false;
+
+function revealLinaje() {
+  document.getElementById('linaje-box').style.display = 'block';
+  document.getElementById('btn-linaje').disabled = true;
+  document.getElementById('btn-linaje').textContent = 'Dato revelado';
+  document.getElementById('btn-linaje').style.opacity = '0.5';
+  linajerevealed = true;
+  document.getElementById('linaje-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function buildPool() {
+  const pool = document.getElementById('pool');
+  pool.innerHTML = '';
+  for (let i = 0; i < poolCount; i++) {
+    pool.appendChild(makeChip('pool', i));
+  }
+  document.getElementById('chips-count').textContent = poolCount + ' ficha' + (poolCount !== 1 ? 's' : '');
+}
+
+function makeChip(from, idx) {
+  const c = document.createElement('div');
+  c.className = 'chip';
+  c.draggable = true;
+  c.dataset.from = from;
+  c.addEventListener('dragstart', e => { dragFrom = from; setTimeout(() => c.classList.add('dragging'), 0); });
+  c.addEventListener('dragend', () => c.classList.remove('dragging'));
+  return c;
+}
+
+function buildHazards() {
+  const grid = document.getElementById('hazards-grid');
+  grid.innerHTML = '';
+  hazards.forEach(h => {
+    const card = document.createElement('div');
+    card.className = 'hazard-card';
+    card.style.setProperty('--zone-color', h.zoneColor);
+
+    const rb = document.createElement('button');
+    rb.className = 'remove-btn';
+    rb.textContent = 'x';
+    rb.onclick = () => returnChips(h.id);
+
+    const zone = document.createElement('div');
+    zone.className = 'hazard-zone';
+    zone.style.color = h.zoneColor;
+    zone.textContent = h.zone;
+
+    const name = document.createElement('div');
+    name.className = 'hazard-name';
+    name.textContent = h.name;
+
+    const czone = document.createElement('div');
+    czone.className = 'hazard-chips-zone';
+    czone.dataset.target = h.id;
+
+    const cnt = document.createElement('span');
+    cnt.className = 'hazard-chip-count';
+    cnt.id = 'cnt-' + h.id;
+
+    czone.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
+    czone.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    czone.addEventListener('drop', e => { e.preventDefault(); card.classList.remove('drag-over'); drop(h.id); });
+
+    card.append(rb, zone, name, czone, cnt);
+    grid.appendChild(card);
+    renderCard(h.id);
+  });
+}
+
+function renderCard(id) {
+  const czone = document.querySelector('[data-target="'+id+'"]');
+  if (!czone) return;
+  czone.innerHTML = '';
+  for (let i = 0; i < assigned[id]; i++) czone.appendChild(makeChip(id, i));
+  const cnt = document.getElementById('cnt-' + id);
+  if (cnt) cnt.textContent = assigned[id] + ' ficha' + (assigned[id] !== 1 ? 's' : '');
+}
+
+function drop(targetId) {
+  if (dragFrom === 'pool') {
+    if (poolCount <= 0) { dragFrom = null; return; }
+    poolCount--; assigned[targetId]++;
+  } else if (dragFrom && dragFrom !== targetId) {
+    if (assigned[dragFrom] <= 0) { dragFrom = null; return; }
+    assigned[dragFrom]--; assigned[targetId]++;
+    renderCard(dragFrom);
+  }
+  renderCard(targetId);
+  buildPool();
+  document.getElementById('results-panel').classList.remove('visible');
+  dragFrom = null;
+}
+
+function returnChips(id) {
+  poolCount += assigned[id];
+  assigned[id] = 0;
+  renderCard(id);
+  buildPool();
+  document.getElementById('results-panel').classList.remove('visible');
+}
+
+function resetAll() {
+  hazards.forEach(h => assigned[h.id] = 0);
+  poolCount = TOTAL_CHIPS;
+  buildPool();
+  buildHazards();
+  document.getElementById('results-panel').classList.remove('visible');
+}
+
+function showResults() {
+  const panel = document.getElementById('results-panel');
+  const content = document.getElementById('results-content');
+  panel.classList.add('visible');
+
+  const sorted = [...hazards].sort((a,b) => assigned[b.id] - assigned[a.id]);
+  const total = hazards.reduce((s,h) => s + assigned[h.id], 0);
+  const pColors = { alta:'#e17055', media:'#fdcb6e', baja:'#8b949e', revisar:'#fd79a8' };
+
+  let html = '';
+  sorted.forEach(h => {
+    const n = assigned[h.id];
+    const pct = total > 0 ? Math.round((n / total) * 100) : 0;
+    html += `<div class="result-item">
+      <div class="result-chips-badge ${n===0?'zero':''}">${n}</div>
+      <div class="result-content">
+        <div class="result-name">${h.name}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:${pColors[h.priority]};text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Prioridad ${h.priority}</div>
+        <div class="result-feedback">${h.feedback}</div>
+        ${n>0?`<div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`:''}
+      </div>
+    </div>`;
+  });
+
+  const leftover = TOTAL_CHIPS - total;
+  if (leftover > 0) {
+    html += `<div style="padding:10px;background:rgba(253,203,110,0.1);border-radius:6px;margin-top:8px;font-size:13px;color:#fdcb6e;">
+      <strong>Fichas sin asignar: ${leftover}</strong><br>
+      <span style="color:var(--muted)">En una crisis de Listeria real, no asignar todos los recursos disponibles es una decision activa. Por que las dejaste?</span>
+    </div>`;
+  }
+
+  content.innerHTML = html;
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Pool accepts drops to return chips
+document.getElementById('pool').addEventListener('dragover', e => e.preventDefault());
+document.getElementById('pool').addEventListener('drop', e => {
+  e.preventDefault();
+  if (dragFrom && dragFrom !== 'pool' && assigned[dragFrom] > 0) {
+    assigned[dragFrom]--;
+    poolCount++;
+    renderCard(dragFrom);
+    buildPool();
+    document.getElementById('results-panel').classList.remove('visible');
+  }
+  dragFrom = null;
+});
+
+buildPool();
+buildHazards();
+
+// 5-minute countdown to enable linaje reveal button
+let secondsLeft = 300;
+const timerEl = document.getElementById('linaje-timer');
+const btnLinaje = document.getElementById('btn-linaje');
+const countdown = setInterval(() => {
+  secondsLeft--;
+  const m = Math.floor(secondsLeft / 60);
+  const s = secondsLeft % 60;
+  timerEl.textContent = m + ':' + String(s).padStart(2, '0');
+  if (secondsLeft <= 0) {
+    clearInterval(countdown);
+    btnLinaje.disabled = false;
+    btnLinaje.style.opacity = '1';
+    btnLinaje.style.cursor = 'pointer';
+    btnLinaje.innerHTML = 'Revelar dato del laboratorio';
+  }
+}, 1000);
+</script>
+</body>
+</html>
